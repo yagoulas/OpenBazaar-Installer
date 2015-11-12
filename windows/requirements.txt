@@ -1,0 +1,5 @@
+cffi
+six
+pyinstaller
+google-apputils
+https://github.com/yagoulas/miniupnp/zipball/msvc_miniupnpc
