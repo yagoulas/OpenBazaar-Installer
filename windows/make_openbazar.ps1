@@ -34,3 +34,9 @@ echo 'Packaging Electron application'
 
 Rename-Item ./OpenBazaarClient-win32-ia32 OpenBazaarClient
 move ./OpenBazaarClient ../windows/dist/
+
+# Create the tray app executable
+cd ../windows
+echo 'Compiling tray application'
+pyinstaller --onefile --windowed systray.py --icon=systray.ico --name=OpenBazaar
+copy ./systray.ico ./dist
