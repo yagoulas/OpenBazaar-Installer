@@ -7,12 +7,16 @@
 #              win32gui_taskbar.py and win32gui_menu.py demos from PyWin32
 
 import os
+import sys
 import psutil
 import subprocess
 
 import win32api
 import win32con
+import win32console
 import win32gui_struct
+import win32event 
+import winerror 
 
 try:
     import winxpgui as win32gui
@@ -222,55 +226,90 @@ def non_string_iterable(obj):
     else:
         return not isinstance(obj, basestring)
 
+class TrayApp(object):
 
-if __name__ == '__main__':
+    def __init__(self):
+        self.icon = 'systray.ico'
+        self.hover_text = "OpenBazaar"
+        self.client = None
+        self.server = None
 
-    icon = 'systray.ico'
-    hover_text = "OpenBazaar"
+    def Start(self):
+        menu_options = (
+            ('Show OpenBazaar', None, self.open_client),
+            ('Show OpenBazaar Server', None, self.start_server),
+            ('Stop OpenBazaar Server', None, self.stop_server),
+            ('Show OpenBazaar Server (Debug)', None, self.start_server_debug)
+        )
 
-    server = subprocess.Popen(['pythonw', 'openbazaard.py', 'start'], shell=True, cwd='OpenBazaar-Server')
-    install = subprocess.Popen(['npm', 'install'], shell=True, cwd='OpenBazaar-Client')
-    install.wait()
-    client = subprocess.Popen(['npm', 'start'], shell=True, cwd='OpenBazaar-Client')
+        self.start_server()
+        self.open_client()
+        SysTrayIcon(self.icon, 
+                    self.hover_text, 
+                    menu_options, 
+                    on_quit=self.Quit, 
+                    default_menu_index=1, 
+                    window_class_name='OpenBazaarTray')
 
-    def kill(proc_pid):
-        process = psutil.Process(proc_pid)
-        for proc in process.get_children(recursive=True):
-            proc.kill()
-        process.kill()
+    def Quit(self, sysTrayIcon=None):
+        if (self.client):
+            self.client.kill()
+        if (self.server):
+            self.server.kill()
 
-    def open_client(sysTrayIcon):
-        subprocess.Popen('./OpenBazaar-Client/OpenBazaar_Client.exe')
+    def open_client(self, sysTrayIcon=None):
+        if (self.client and self.client.poll() is None):
+            threads = self.client.threads()
 
+            def callb(hwnd, handle):
+                text = win32gui.GetWindowText(hwnd)
+                if (text == "OpenBazaar"):
+                    win32gui.ShowWindow(hwnd, win32con.SW_SHOWNORMAL)
+                    win32gui.SetForegroundWindow(hwnd)
+                return True
 
-    def start_server(sysTrayIcon):
-        subprocess.Popen(['pythonw', "./openbazaar-server/openbazaard.py", 'start'])
+            win32gui.EnumThreadWindows(threads[0].id, callb, None)
+            return
 
+        self.client = psutil.Popen(['OpenBazaarClient\OpenBazaarClient.exe'], cwd='OpenBazaarClient')
 
-    def start_server_debug(sysTrayIcon):
-        subprocess.Popen(['python', "./openbazaar-server/openbazaard.py", 'start'])
+    def start_server(self, sysTrayIcon=None):
+        if(self.server and self.server.poll() is None):
+            return
+        si = subprocess.STARTUPINFO()
+        si.dwFlags = subprocess.STARTF_USESHOWWINDOW
+        si.wShowWindow = subprocess.SW_HIDE
+        self.server = subprocess.Popen(['OpenBazaarServer\OpenBazaarServer.exe', 'start', '--testnet'], cwd='OpenBazaarServer', startupinfo=si)
 
+    def start_server_debug(self, sysTrayIcon=None):
+        if(self.server and self.server.poll() is None):
+            win32console.AttachConsole(self.server.pid)
+            win32gui.ShowWindow(win32console.GetConsoleWindow(), win32con.SW_SHOWNORMAL)
+            win32gui.SetForegroundWindow(win32con.GetConsoleWindow())
+            win32console.FreeConsole()
+            return
+        self.server = psutil.Popen(['OpenBazaarServer\OpenBazaarServer.exe', 'start', '--testnet'], cwd='OpenBazaarServer')
 
-    def stop_server(sysTrayIcon=None):
-        subprocess.Popen(['pythonw', "./openbazaar-server/openbazaard.py", 'stop'])
+    def stop_server(self, sysTrayIcon=None):
+        if (self.server):
+            self.server.kill()
 
-
-    def switch_icon(sysTrayIcon):
+    def switch_icon(self, sysTrayIcon):
         sysTrayIcon.icon = icon
         sysTrayIcon.refresh_icon()
 
+def main():
+    # Do not run again if already running
+    mutex = win32event.CreateMutex(None, False, "OpenBazaar_0_1_mutex")
+    if (win32api.GetLastError() == winerror.ERROR_ALREADY_EXISTS):
+        return
 
-    menu_options = (
-        ('Open OpenBazaar', None, open_client),
-        ('Start OpenBazaar Server', None, start_server),
-        ('Stop OpenBazaar Server', None, stop_server),
-        ('Start OpenBazaar Server (Debug)', None, start_server_debug)
-    )
+    # Set the current working dir to be the dir of the executable        
+    os.chdir(os.path.dirname(sys.argv[0]))
 
-    def bye(sysTrayIcon):
-        stop_server(None)
-        #if client:
-            #kill(client.pid)
-        print 'Close System Tray Icon'
-
-    SysTrayIcon(icon, hover_text, menu_options, on_quit=bye, default_menu_index=1, window_class_name='OpenBazaar')
+    # Start the application
+    app = TrayApp()
+    app.Start()
+        
+if __name__ == '__main__':
+    main()
