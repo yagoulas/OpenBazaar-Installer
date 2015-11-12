@@ -29,13 +29,10 @@ OutFile "OpenBazaar_Setup.exe"
 InstallDir "$LOCALAPPDATA\${APP_NAME}"
 !define TEMP_DIR "$LOCALAPPDATA\Temp\${APP_NAME}"
 
-;Request application privileges
-RequestExecutionLevel admin
+RequestExecutionLevel user
 
 !define APP_LAUNCHER "OpenBazaar.exe"
 !define UNINSTALL_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}"
-
-!include python.nsh
 
 ; ------------------- ;
 ;     UI Settings     ;
@@ -312,78 +309,16 @@ done:
 FunctionEnd
 
 Section ; App Files
+
+    SetShellVarContext current
+    SetOutPath "$INSTDIR"
+    SetOverwrite try
+    File /r dist\*.*
+
     ;Create uninstaller
     WriteUninstaller "$INSTDIR\Uninstall.exe"
 
-    SetOutPath "$INSTDIR"
-    File /r "../temp/OpenBazaar-Client"
-    File /r "../OpenBazaar-Server"
-    File /r "OpenBazaar.ps1"
-    File /r "icon.ico"
-    File /r "systray.ico"
-    File /r "install.ps1"
-    File /r "systray.py"
-
-    SetOutPath "${TEMP_DIR}"
-    File "../temp/python-2.7.10.msi"
-    File "../temp/vcredist.exe"
-    ;File "../temp/node.msi"
-    ;File /r "../temp/electron"
-    ;File "../temp/pywin32.exe"
-
-SectionEnd
-
-Section ; Install Software
-
-    # Start Menu
-    createDirectory "$SMPROGRAMS\OpenBazaar"
-    createShortCut "$SMPROGRAMS\OpenBazaar\OpenBazaar.lnk" "$INSTDIR\OpenBazaar.exe" "" "$INSTDIR\icon.ico"
-
-    ;DetailPrint "Installing Node JS"
-    ;ExecWait '"$SYSDIR\msiExec" /qn /i "node.msi" INSTALLDIR=$INSTDIR\node'
-
-    DetailPrint "Installing Python 2.7.10"
-    ExecWait '"$SYSDIR\msiExec" /qn /i "python-2.7.10.msi" TARGETDIR=c:\python27'
-
-    DetailPrint "Installing Visual C++ Redistributable"
-    ExecWait '"vcredist.exe" /passive /quiet /norestart'
-
-    DetailPrint "Installing pynacl"
-    ExecWait '"c:\python27\scripts\pip.exe" install cffi six pyinstaller google-apputils'
-
-    ExecWait '"setx" PATH "%PATH%;C:\python27;c:\python27\scripts"'
-
-    DetailPrint "Installing pynacl"
-    ${If} ${RunningX64}
-        File /r "../temp/PyNaCl-0.3.0-py2.7-win-amd64.egg"
-        Rename "PyNaCl-0.3.0-py2.7-win-amd64.egg\" "c:\python27\Lib\site-packages\PyNaCl-0.3.0-py2.7-win-amd64.egg\"
-        nsExec::ExecToLog '"c:\python27\scripts\easy_install.exe" c:\python27\Lib\site-packages\PyNaCl-0.3.0-py2.7-win-amd64.egg'
-        DetailPrint "easy_install returned $0"
-    ${Else}
-        File /r "../temp/PyNaCl-0.3.0-py2.7-win32.egg"
-        Rename "PyNaCl-0.3.0-py2.7-win32.egg\" "c:\python27\Lib\site-packages\PyNaCl-0.3.0-py2.7-win32.egg\"
-        nsExec::ExecToLog '"c:\python27\scripts\easy_install.exe" c:\python27\Lib\site-packages\PyNaCl-0.3.0-py2.7-win32.egg'
-        DetailPrint "easy_install returned $0"
-    ${EndIf}
-
-    DetailPrint "Installing Python modules"
-    SetOutPath "$INSTDIR\OpenBazaar-Server"
-    nsExec::ExecToLog 'c:\python27\scripts\pip install -r requirements.txt'
-    Pop $0
-    ${If} $0 = 0
-        Pop $1
-        DetailPrint "pip install returned $1"
-    ${EndIf}
-
-
-    DetailPrint "Building OpenBazaar.exe"
-    SetOutPath "$INSTDIR"
-    nsExec::ExecToLog '"c:\python27\scripts\pyinstaller" --onefile --windowed $INSTDIR\systray.py --icon=$INSTDIR\systray.ico'
-    Pop $0
-    DetailPrint "pyinstaller returned $0"
-
-    Rename "$INSTDIR\dist\systray.exe" "$INSTDIR\OpenBazaar.exe"
-
+    File /r dist\*.*
 
 SectionEnd
 
