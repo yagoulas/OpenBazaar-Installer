@@ -40,3 +40,6 @@ cd ../windows
 echo 'Compiling tray application'
 pyinstaller --onefile --windowed systray.py --icon=systray.ico --name=OpenBazaar
 copy ./systray.ico ./dist
+
+#Create the installer
+makensis ob.nsi
