@@ -27,7 +27,7 @@ Function Test-Requirements($requirements)
     }
 }
 
-Test-Requirements(@("python", "npm", "makensis"))  # add gpg and git here later
+Test-Requirements(@("python", "npm", "makensis", "gpg"))  # add git here later
 
 if (-NOT($env:VS90COMNTOOLS))
 {
