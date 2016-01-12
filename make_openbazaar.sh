@@ -92,27 +92,33 @@ command_exists npm
 # by calling either `py.exe -2.7-x64 ` or `py.exe -2.7-32`
 
 # Download OS specific installer files to package
-case $OS in win32*)
+case $OS in win32|win64)
 
     command_exists py
 
-
-        ;;
-    win64*)
-
-        command_exists py
-
         echo 'Building Server Binary...'
         cd OpenBazaar-Server
-        py.exe -2.7-x64 -m pip install virtualenv
-        py.exe -2.7-x64 -m virtualenv env
-        source env/scripts/activate
+
+        if [ $OS = "win64" ]; then
+            ELECTRONARCH=x64
+            py.exe -2.7-x64 -m pip install virtualenv
+            py.exe -2.7-x64 -m virtualenv env-$OS
+            source env-$OS/scripts/activate
+            pip install https://openbazaar.org/downloads/miniupnpc-1.9-cp27-none-win_amd64.whl
+            pip install https://openbazaar.org/downloads/PyNaCl-0.3.0-cp27-none-win_amd64.whl
+        else
+            ELECTRONARCH=ia32
+            py.exe -2.7-32 -m pip install virtualenv
+            py.exe -2.7-32 -m virtualenv env-$OS
+            source env-$OS/scripts/activate
+            pip install https://openbazaar.org/downloads/miniupnpc-1.9-cp27-none-win32.whl
+            pip install https://openbazaar.org/downloads/PyNaCl-0.3.0-cp27-none-win32.whl        
+        fi
+
         pip install pyinstaller==3.0
-        pip install https://openbazaar.org/downloads/miniupnpc-1.9-cp27-none-win_amd64.whl
-        pip install https://openbazaar.org/downloads/PyNaCl-0.3.0-cp27-none-win_amd64.whl
         pip install -r requirements.txt
-        pyinstaller -i ../windows/icon.ico openbazaard.py --noconfirm
-        cp -rf dist/openbazaard/* ../build-$OS/OpenBazaar-Server
+        pyinstaller -i ../windows/icon.ico openbazaard.py --noconfirm --workpath=work-$OS --distpath=dist-$OS
+        cp -rf dist-$OS/openbazaard/* ../build-$OS/OpenBazaar-Server
         cp ob.cfg ../build-$OS/OpenBazaar-Server
         cd ..
 
@@ -123,14 +129,14 @@ case $OS in win32*)
 
         echo 'Building Client Binary...'
         cd ../temp-$OS
-        ../node_modules/.bin/electron-packager ../OpenBazaar-Client OpenBazaar --asar=true --protocol-name=OpenBazaar --protocol=ob --platform=win32 --arch=x64 --icon=../windows/icon.ico --version=${ELECTRONVER} --overwrite
+        ../node_modules/.bin/electron-packager ../OpenBazaar-Client OpenBazaar --asar=true --protocol-name=OpenBazaar --protocol=ob --platform=win32 --arch=${ELECTRONARCH} --icon=../windows/icon.ico --version=${ELECTRONVER} --overwrite
         cd ..
 
         echo 'Copying server files into application folder(s)...'
-        cp -rf build-$OS/OpenBazaar-Server temp-$OS/OpenBazaar-win32-x64/resources/
+        cp -rf build-$OS/OpenBazaar-Server temp-$OS/OpenBazaar-win32-${ELECTRONARCH}/resources/
 
         echo 'Building Installer...'
-        node_modules/.bin/electron-builder temp-$OS/OpenBazaar-win32-x64/ --platform=win --arch=x64 --out=build-$OS --config=config.json
+        node_modules/.bin/electron-builder temp-$OS/OpenBazaar-win32-${ELECTRONARCH}/ --platform=win --arch=${ELECTRONARCH} --out=build-$OS --config=config.json
 
         ;;
 
