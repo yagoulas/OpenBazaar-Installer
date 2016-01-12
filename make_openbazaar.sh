@@ -93,14 +93,12 @@ command_exists npm
 
 # Download OS specific installer files to package
 case $OS in win32*)
-    export OB_OS=win32
 
     command_exists py
 
 
         ;;
     win64*)
-        export OB_OS=win64
 
         command_exists py
 
